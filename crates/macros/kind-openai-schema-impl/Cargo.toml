@@ -1,0 +1,18 @@
+[package]
+name = "kind-openai-schema-impl"
+version = "0.1.6"
+edition = "2021"
+description = "OpenAI schema generation macro"
+license = "MIT"
+homepage = "https://github.com/Kindness-Works/kind-openai"
+repository = "https://github.com/Kindness-Works/kind-openai"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "2.0"
+quote = "1.0"
+proc-macro2 = "1.0"
+serde = "1.0.205"
+serde_json = "1.0.122"

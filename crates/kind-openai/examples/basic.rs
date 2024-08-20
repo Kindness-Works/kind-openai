@@ -1,10 +1,3 @@
-# Kind OpenAI
-
-An experimental, highly opinionated OpenAI API wrapper for Rust. This is primarily designed around making structured outputs easy to work with.
-
-## Example
-
-```rust
 //! Run this example with `OPENAI_API_KEY=`
 
 use kind_openai::{
@@ -44,5 +37,3 @@ async fn main() {
 
     println!("{:?}", name);
 }
-
-```
