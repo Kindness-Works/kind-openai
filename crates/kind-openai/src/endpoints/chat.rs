@@ -106,30 +106,30 @@ pub struct ChatCompletionRequestMessage<'a> {
 
 impl<'a> ChatCompletionRequestMessage<'a> {
     /// Creates a new system message.
-    pub fn system(content: &'a str) -> Self {
+    pub fn system(content: Cow<'a, str>) -> Self {
         Self {
             role: "system",
-            content: content.into(),
+            content,
             refusal: None,
             name: None,
         }
     }
 
     /// Creates a new user message.
-    pub fn user(content: &'a str) -> Self {
+    pub fn user(content: Cow<'a, str>) -> Self {
         Self {
             role: "user",
-            content: content.into(),
+            content,
             refusal: None,
             name: None,
         }
     }
 
     /// Creates a new assistant message.
-    pub fn assistant(content: &'a str) -> Self {
+    pub fn assistant(content: Cow<'a, str>) -> Self {
         Self {
             role: "assistant",
-            content: content.into(),
+            content,
             refusal: None,
             name: None,
         }
@@ -146,36 +146,21 @@ impl<'a> ChatCompletionRequestMessage<'a> {
 #[macro_export]
 macro_rules! system_message {
     ($($arg:tt)*) => {
-        ChatCompletionRequestMessage {
-            role: "system",
-            content: format!($($arg)*).into(),
-            refusal: None,
-            name: None,
-        }
+        ChatCompletionRequestMessage::system(format!($($arg)*).into());
     };
 }
 
 #[macro_export]
 macro_rules! user_message {
     ($($arg:tt)*) => {
-        ChatCompletionRequestMessage {
-            role: "user",
-            content: format!($($arg)*).into(),
-            refusal: None,
-            name: None,
-        }
+        ChatCompletionRequestMessage::user(format!($($arg)*).into());
     };
 }
 
 #[macro_export]
 macro_rules! assistant_message {
     ($($arg:tt)*) => {
-        ChatCompletionRequestMessage {
-            role: "assistant",
-            content: format!($($arg)*).into(),
-            refusal: None,
-            name: None,
-        }
+        ChatCompletionRequestMessage::assistant(format!($($arg)*).into());
     };
 }
 
