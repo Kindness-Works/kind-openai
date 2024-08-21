@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use kind_openai_schema::{GeneratedOpenAISchema, OpenAISchema};
 use serde::{
     de::{self},
@@ -97,7 +99,7 @@ enum ChatCompletionRequestResponseFormat {
 #[derive(Serialize, Debug)]
 pub struct ChatCompletionRequestMessage<'a> {
     role: &'a str,
-    content: &'a str,
+    content: Cow<'a, str>,
     refusal: Option<&'a str>,
     name: Option<&'a str>,
 }
@@ -107,7 +109,7 @@ impl<'a> ChatCompletionRequestMessage<'a> {
     pub fn system(content: &'a str) -> Self {
         Self {
             role: "system",
-            content,
+            content: content.into(),
             refusal: None,
             name: None,
         }
@@ -117,7 +119,7 @@ impl<'a> ChatCompletionRequestMessage<'a> {
     pub fn user(content: &'a str) -> Self {
         Self {
             role: "user",
-            content,
+            content: content.into(),
             refusal: None,
             name: None,
         }
@@ -127,7 +129,7 @@ impl<'a> ChatCompletionRequestMessage<'a> {
     pub fn assistant(content: &'a str) -> Self {
         Self {
             role: "assistant",
-            content,
+            content: content.into(),
             refusal: None,
             name: None,
         }
@@ -144,23 +146,39 @@ impl<'a> ChatCompletionRequestMessage<'a> {
 #[macro_export]
 macro_rules! system_message {
     ($($arg:tt)*) => {
-        ChatCompletionRequestMessage::system(&format!($($arg)*))
+        ChatCompletionRequestMessage {
+            role: "system",
+            content: format!($($arg)*).into(),
+            refusal: None,
+            name: None,
+        }
     };
 }
 
 #[macro_export]
 macro_rules! user_message {
     ($($arg:tt)*) => {
-        ChatCompletionRequestMessage::user(&format!($($arg)*))
+        ChatCompletionRequestMessage {
+            role: "user",
+            content: format!($($arg)*).into(),
+            refusal: None,
+            name: None,
+        }
     };
 }
 
 #[macro_export]
 macro_rules! assistant_message {
     ($($arg:tt)*) => {
-        ChatCompletionRequestMessage::assistant(&format!($($arg)*))
+        ChatCompletionRequestMessage {
+            role: "assistant",
+            content: format!($($arg)*).into(),
+            refusal: None,
+            name: None,
+        }
     };
 }
+
 /// A chat completion response.
 #[derive(Deserialize)]
 pub struct ChatCompletion<T> {
