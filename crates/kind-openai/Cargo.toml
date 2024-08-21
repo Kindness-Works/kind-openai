@@ -1,8 +1,8 @@
 [package]
 name = "kind-openai"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
-description = "OpenAI schema generation macro"
+description = "Highly opinionated OpenAI API wrapper crate. By Kindness Inc."
 license = "MIT"
 homepage = "https://github.com/Kindness-Works/kind-openai"
 repository = "https://github.com/Kindness-Works/kind-openai"

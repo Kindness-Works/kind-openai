@@ -141,6 +141,26 @@ impl<'a> ChatCompletionRequestMessage<'a> {
     }
 }
 
+#[macro_export]
+macro_rules! system_message {
+    ($($arg:tt)*) => {
+        ChatCompletionRequestMessage::system(&format!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! user_message {
+    ($($arg:tt)*) => {
+        ChatCompletionRequestMessage::user(&format!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! assistant_message {
+    ($($arg:tt)*) => {
+        ChatCompletionRequestMessage::assistant(&format!($($arg)*))
+    };
+}
 /// A chat completion response.
 #[derive(Deserialize)]
 pub struct ChatCompletion<T> {
