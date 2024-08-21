@@ -101,7 +101,7 @@ pub struct ChatCompletionRequestMessage<'a> {
     role: &'a str,
     content: Cow<'a, str>,
     refusal: Option<&'a str>,
-    name: Option<&'a str>,
+    name: Option<Cow<'a, str>>,
 }
 
 impl<'a> ChatCompletionRequestMessage<'a> {
@@ -137,7 +137,7 @@ impl<'a> ChatCompletionRequestMessage<'a> {
 
     /// Adds a name to the message, which can provide context to the model when
     /// multiple participants are present in the conversation.
-    pub fn named(mut self, name: &'a str) -> Self {
+    pub fn named(mut self, name: Cow<'a, str>) -> Self {
         self.name = Some(name);
         self
     }
