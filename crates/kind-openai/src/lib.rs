@@ -79,7 +79,7 @@ where
         req: &endpoints::chat::ChatCompletionRequest<'a, S>,
     ) -> OpenAIResult<ChatCompletion<S>>
     where
-        S: OpenAISchema + for<'de> serde::Deserialize<'de>,
+        S: for<'de> serde::Deserialize<'de>,
     {
         endpoints::chat::create_chat_completion(self, req).await
     }
