@@ -83,4 +83,11 @@ where
     {
         endpoints::chat::create_chat_completion(self, req).await
     }
+
+    pub async fn create_embeddings(
+        &self,
+        req: &endpoints::embeddings::CreateEmbeddingsRequest<'_>,
+    ) -> OpenAIResult<endpoints::embeddings::CreateEmbeddingsResponse> {
+        endpoints::embeddings::create_embeddings(self, req).await
+    }
 }
