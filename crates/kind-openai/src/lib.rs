@@ -13,6 +13,7 @@ use endpoints::chat::ChatCompletion;
 pub use error::{OpenAIError, OpenAIResult};
 pub use kind_openai_schema::*;
 use reqwest::{IntoUrl, Method};
+use serde::Deserialize;
 pub use util::UnstructuredString;
 
 /// A handle to OpenAI.
@@ -90,4 +91,11 @@ where
     ) -> OpenAIResult<endpoints::embeddings::CreateEmbeddingsResponse> {
         endpoints::embeddings::create_embeddings(self, req).await
     }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Usage {
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub total_tokens: u32,
 }

@@ -11,7 +11,7 @@ use super::API_BASE_URL;
 use crate::{
     auth,
     error::{OpenAIAPIError, OpenAIResponseExt, OpenAIResult},
-    util, OpenAI, OpenAIError,
+    util, OpenAI, OpenAIError, Usage,
 };
 
 #[derive(Serialize, Clone, Copy)]
@@ -204,13 +204,6 @@ impl<T> ChatCompletionChoice<T> {
 struct ChatCompletionResponseMessage<T> {
     content: T,
     refusal: Option<String>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct Usage {
-    pub prompt_tokens: u32,
-    pub completion_tokens: u32,
-    pub total_tokens: u32,
 }
 
 // `content` is a string that contains json inside of it, but we want to unravel
