@@ -169,6 +169,7 @@ macro_rules! assistant_message {
 pub struct ChatCompletion<T> {
     // id: String,
     choices: Vec<ChatCompletionChoice<T>>,
+    usage: Usage,
 }
 
 impl<T> ChatCompletion<T> {
@@ -178,6 +179,10 @@ impl<T> ChatCompletion<T> {
             Some(choice) => Ok(choice),
             None => Err(OpenAIError::API(OpenAIAPIError::NoChoices)),
         }
+    }
+
+    pub fn get_usage(&self) -> &Usage {
+        &self.usage
     }
 }
 
@@ -199,15 +204,13 @@ impl<T> ChatCompletionChoice<T> {
 struct ChatCompletionResponseMessage<T> {
     content: T,
     refusal: Option<String>,
-    usage: Usage,
 }
 
-#[allow(dead_code)]
-#[derive(Deserialize)]
-struct Usage {
-    prompt_tokens: u32,
-    completion_tokens: u32,
-    total_tokens: u32,
+#[derive(Deserialize, Debug)]
+pub struct Usage {
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub total_tokens: u32,
 }
 
 // `content` is a string that contains json inside of it, but we want to unravel
@@ -241,17 +244,7 @@ where
                 .remove("refusal")
                 .and_then(|v| v.as_str().map(String::from));
 
-            let usage = map
-                .remove("usage")
-                .ok_or_else(|| serde::de::Error::missing_field("usage"))?;
-
-            let usage: Usage = Usage::deserialize(usage).map_err(serde::de::Error::custom)?;
-
-            Ok(ChatCompletionResponseMessage {
-                content,
-                refusal,
-                usage,
-            })
+            Ok(ChatCompletionResponseMessage { content, refusal })
         } else {
             Err(de::Error::custom("expected an object"))
         }
