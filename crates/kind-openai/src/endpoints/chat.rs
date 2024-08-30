@@ -181,7 +181,7 @@ impl<T> ChatCompletion<T> {
         }
     }
 
-    pub fn get_usage(&self) -> &Usage {
+    pub fn usage(&self) -> &Usage {
         &self.usage
     }
 }
