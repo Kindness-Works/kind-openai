@@ -9,7 +9,7 @@ An experimental, highly opinionated OpenAI API wrapper for Rust. This is primari
 
 use kind_openai::{
     endpoints::chat::{ChatCompletionModel, ChatCompletionRequest, ChatCompletionRequestMessage},
-    EnvironmentAuthTokenProvider, OpenAI, OpenAISchema,
+    system_message, user_message, EnvironmentAuthTokenProvider, OpenAI, OpenAISchema,
 };
 use serde::Deserialize;
 
@@ -23,14 +23,14 @@ pub struct Name {
 async fn main() {
     let client = OpenAI::new(EnvironmentAuthTokenProvider);
 
+    let name = "John Doe";
+
     let chat_completion: ChatCompletionRequest<Name> =
         ChatCompletionRequest::new_structured(ChatCompletionModel::Gpt4oMini)
-            .message(ChatCompletionRequestMessage::system(
-                "Extract the first and last name from the provided message.",
+            .message(system_message!(
+                "Extract the first and last name from the provided message."
             ))
-            .message(ChatCompletionRequestMessage::user(
-                "Hello, my name is John Doe.",
-            ))
+            .message(user_message!("Hello, my name is {name}."))
             .temperature(0.1);
 
     let name = client

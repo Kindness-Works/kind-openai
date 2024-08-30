@@ -11,7 +11,7 @@ use super::API_BASE_URL;
 use crate::{
     auth,
     error::{OpenAIAPIError, OpenAIResponseExt, OpenAIResult},
-    util, OpenAI, OpenAIError,
+    util, OpenAI, OpenAIError, Usage,
 };
 
 #[derive(Serialize, Clone, Copy)]
@@ -169,6 +169,7 @@ macro_rules! assistant_message {
 pub struct ChatCompletion<T> {
     // id: String,
     choices: Vec<ChatCompletionChoice<T>>,
+    usage: Usage,
 }
 
 impl<T> ChatCompletion<T> {
@@ -178,6 +179,10 @@ impl<T> ChatCompletion<T> {
             Some(choice) => Ok(choice),
             None => Err(OpenAIError::API(OpenAIAPIError::NoChoices)),
         }
+    }
+
+    pub fn usage(&self) -> &Usage {
+        &self.usage
     }
 }
 
