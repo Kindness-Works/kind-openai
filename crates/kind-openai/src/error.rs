@@ -46,6 +46,8 @@ pub enum OpenAIAPIError {
     QuotaExceeded(OpenAIAPIErrorData),
     #[error("internal error")]
     InternalError(OpenAIAPIErrorData),
+    #[error("invalid request error")]
+    InvalidRequestError(OpenAIAPIErrorData),
 }
 
 #[derive(Debug, Deserialize, Clone)]
