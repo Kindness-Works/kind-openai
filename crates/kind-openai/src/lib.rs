@@ -85,6 +85,13 @@ where
         endpoints::chat::create_chat_completion(self, req).await
     }
 
+    pub async fn create_chat_reasoning_completion<'a>(
+        &self,
+        req: &endpoints::chat_reasoning::ChatReasoningCompletionRequest<'a>,
+    ) -> OpenAIResult<endpoints::chat_reasoning::ChatReasoningCompletion> {
+        endpoints::chat_reasoning::create_chat_reasoning_completion(self, req).await
+    }
+
     pub async fn create_embeddings(
         &self,
         req: &endpoints::embeddings::CreateEmbeddingsRequest<'_>,
