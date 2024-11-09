@@ -1,6 +1,6 @@
 [package]
 name = "kind-openai"
-version = "0.1.15"
+version = "0.1.16"
 edition = "2021"
 description = "Highly opinionated OpenAI API wrapper crate. By Kindness Inc."
 license = "MIT"
