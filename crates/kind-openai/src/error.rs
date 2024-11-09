@@ -34,19 +34,19 @@ pub enum OpenAIAPIError {
     #[error("no choices")]
     #[serde(skip)]
     NoChoices,
-    #[error("model context length exceeded")]
+    #[error("model context length exceeded: {0}")]
     ContextLengthExceeded(OpenAIAPIErrorData),
-    #[error("cloudflare service unavailable")]
+    #[error("cloudflare service unavailable: {0}")]
     CfServiceUnavailable(OpenAIAPIErrorData),
-    #[error("transient server error")]
+    #[error("transient server error: {0}")]
     ServerError(OpenAIAPIErrorData),
-    #[error("cloudflare bad gateway")]
+    #[error("cloudflare bad gateway: {0}")]
     CfBadGateway(OpenAIAPIErrorData),
-    #[error("quota exceeded")]
+    #[error("quota exceeded: {0}")]
     QuotaExceeded(OpenAIAPIErrorData),
-    #[error("internal error")]
+    #[error("internal error: {0}")]
     InternalError(OpenAIAPIErrorData),
-    #[error("invalid request error")]
+    #[error("invalid request error: {0}")]
     InvalidRequestError(OpenAIAPIErrorData),
 }
 
@@ -55,6 +55,19 @@ pub struct OpenAIAPIErrorData {
     pub message: String,
     pub param: Option<String>,
     pub code: Option<String>,
+}
+
+impl std::fmt::Display for OpenAIAPIErrorData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "message: {}", self.message)?;
+        if let Some(param) = &self.param {
+            write!(f, ", param: {}", param)?;
+        }
+        if let Some(code) = &self.code {
+            write!(f, ", code: {}", code)?;
+        }
+        Ok(())
+    }
 }
 
 pub(crate) trait OpenAIResponseExt {
