@@ -2,7 +2,8 @@ use proc_macro::TokenStream;
 use quote::quote;
 use serde_json::{json, Value};
 use syn::{
-    parse_macro_input, Attribute, Data, DeriveInput, Fields, GenericArgument, PathArguments, Type,
+    parse_macro_input, Attribute, Data, DeriveInput, Expr, Fields, GenericArgument, PathArguments,
+    Type,
 };
 
 struct FieldSchema {
@@ -26,10 +27,12 @@ pub fn openai_schema_derive(input: TokenStream) -> TokenStream {
                     .map(|f| {
                         let field_name = f.ident.as_ref().unwrap().to_string();
                         let field_schema = get_field_type(&f.ty);
+                        let description = get_description(&f.attrs);
                         FieldInfo {
                             name: field_name,
                             schema: field_schema.schema,
                             required: field_schema.required,
+                            description,
                         }
                     })
                     .collect::<Vec<FieldInfo>>(),
@@ -40,10 +43,12 @@ pub fn openai_schema_derive(input: TokenStream) -> TokenStream {
                     .map(|(i, f)| {
                         let field_name = i.to_string();
                         let field_schema = get_field_type(&f.ty);
+                        let description = get_description(&f.attrs);
                         FieldInfo {
                             name: field_name,
                             schema: field_schema.schema,
                             required: field_schema.required,
+                            description,
                         }
                     })
                     .collect::<Vec<FieldInfo>>(),
@@ -52,7 +57,16 @@ pub fn openai_schema_derive(input: TokenStream) -> TokenStream {
 
             let mut properties = serde_json::Map::new();
             for field in &field_infos {
-                properties.insert(field.name.clone(), field.schema.clone());
+                let mut field_schema = field.schema.clone();
+                if let Some(description) = &field.description {
+                    if let Some(obj) = field_schema.as_object_mut() {
+                        obj.insert(
+                            "description".to_string(),
+                            Value::String(description.clone()),
+                        );
+                    }
+                }
+                properties.insert(field.name.clone(), field_schema);
             }
 
             let required: Vec<String> = field_infos
@@ -152,14 +166,35 @@ struct FieldInfo {
     name: String,
     schema: Value,
     required: bool,
+    description: Option<String>,
 }
 
-fn get_description(attrs: &[Attribute]) -> String {
-    attrs
+fn get_description(attrs: &[Attribute]) -> Option<String> {
+    let docs = attrs
         .iter()
-        .find(|attr| attr.path().is_ident("doc"))
-        .map(|attr| attr.parse_args::<syn::LitStr>().unwrap().value())
-        .unwrap_or_default()
+        .filter_map(|attr| {
+            if attr.path().is_ident("doc") {
+                match &attr.meta {
+                    syn::Meta::NameValue(meta_name_value) => match &meta_name_value.value {
+                        Expr::Lit(syn::ExprLit {
+                            lit: syn::Lit::Str(lit_str),
+                            ..
+                        }) => Some(lit_str.value().trim().to_owned()),
+                        _ => None,
+                    },
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    if docs.is_empty() {
+        None
+    } else {
+        Some(docs)
+    }
 }
 
 fn get_field_type(ty: &Type) -> FieldSchema {
