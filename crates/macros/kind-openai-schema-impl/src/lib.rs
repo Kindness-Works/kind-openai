@@ -5,6 +5,11 @@ use syn::{
     parse_macro_input, Attribute, Data, DeriveInput, Fields, GenericArgument, PathArguments, Type,
 };
 
+struct FieldSchema {
+    schema: Value,
+    required: bool,
+}
+
 #[proc_macro_derive(OpenAISchema)]
 pub fn openai_schema_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -12,33 +17,50 @@ pub fn openai_schema_derive(input: TokenStream) -> TokenStream {
 
     let description = get_description(&input.attrs);
 
-    let properties = match input.data {
+    let field_infos = match input.data {
         Data::Struct(data) => match data.fields {
             Fields::Named(fields) => fields
                 .named
                 .iter()
                 .map(|f| {
                     let field_name = f.ident.as_ref().unwrap().to_string();
-                    let field_type = get_field_type(&f.ty);
-                    (field_name, field_type)
+                    let field_schema = get_field_type(&f.ty);
+                    FieldInfo {
+                        name: field_name,
+                        schema: field_schema.schema,
+                        required: field_schema.required,
+                    }
                 })
-                .collect::<serde_json::Map<String, Value>>(),
+                .collect::<Vec<FieldInfo>>(),
             Fields::Unnamed(fields) => fields
                 .unnamed
                 .iter()
                 .enumerate()
                 .map(|(i, f)| {
                     let field_name = i.to_string();
-                    let field_type = get_field_type(&f.ty);
-                    (field_name, field_type)
+                    let field_schema = get_field_type(&f.ty);
+                    FieldInfo {
+                        name: field_name,
+                        schema: field_schema.schema,
+                        required: field_schema.required,
+                    }
                 })
-                .collect::<serde_json::Map<String, Value>>(),
-            Fields::Unit => serde_json::Map::new(),
+                .collect::<Vec<FieldInfo>>(),
+            Fields::Unit => Vec::new(),
         },
         _ => panic!("Only structs are supported"),
     };
 
-    let required: Vec<String> = properties.keys().cloned().collect();
+    let mut properties = serde_json::Map::new();
+    for field in &field_infos {
+        properties.insert(field.name.clone(), field.schema.clone());
+    }
+
+    let required: Vec<String> = field_infos
+        .iter()
+        .filter(|f| f.required)
+        .map(|f| f.name.clone())
+        .collect();
 
     let schema = json!({
         "name": name.to_string(),
@@ -65,6 +87,12 @@ pub fn openai_schema_derive(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+struct FieldInfo {
+    name: String,
+    schema: Value,
+    required: bool,
+}
+
 fn get_description(attrs: &[Attribute]) -> String {
     attrs
         .iter()
@@ -73,41 +101,88 @@ fn get_description(attrs: &[Attribute]) -> String {
         .unwrap_or_default()
 }
 
-fn get_field_type(ty: &Type) -> Value {
+fn get_field_type(ty: &Type) -> FieldSchema {
     match ty {
         Type::Path(type_path) => {
             let segment = type_path.path.segments.last().unwrap();
             let type_name = segment.ident.to_string();
             match type_name.as_str() {
-                "String" => json!({"type": "string"}),
-                "i32" | "i64" | "f32" | "f64" => json!({"type": "number"}),
-                "bool" => json!({"type": "boolean"}),
+                "String" => FieldSchema {
+                    schema: json!({"type": "string"}),
+                    required: true,
+                },
+                "i32" | "i64" | "f32" | "f64" => FieldSchema {
+                    schema: json!({"type": "number"}),
+                    required: true,
+                },
+                "bool" => FieldSchema {
+                    schema: json!({"type": "boolean"}),
+                    required: true,
+                },
                 "Vec" => {
                     if let PathArguments::AngleBracketed(args) = &segment.arguments {
                         if let Some(GenericArgument::Type(inner_type)) = args.args.first() {
-                            return json!({
-                                "type": "array",
-                                "items": get_field_type(inner_type)
-                            });
+                            let inner_schema = get_field_type(inner_type);
+                            return FieldSchema {
+                                schema: json!({
+                                    "type": "array",
+                                    "items": inner_schema.schema
+                                }),
+                                required: true,
+                            };
                         }
                     }
-                    json!({"type": "array", "items": {}})
+                    FieldSchema {
+                        schema: json!({"type": "array", "items": {}}),
+                        required: true,
+                    }
                 }
                 "Option" => {
                     if let PathArguments::AngleBracketed(args) = &segment.arguments {
                         if let Some(GenericArgument::Type(inner_type)) = args.args.first() {
                             let inner_schema = get_field_type(inner_type);
-                            return json!({
-                                "anyOf": [
-                                    inner_schema,
-                                    {"type": "null"}
-                                ]
-                            });
+                            let schema_with_null = match inner_schema.schema.clone() {
+                                Value::Object(mut map) => {
+                                    if let Some(Value::String(type_str)) = map.get("type") {
+                                        map.insert(
+                                            "type".to_string(),
+                                            Value::Array(vec![
+                                                Value::String(type_str.clone()),
+                                                Value::String("null".to_string()),
+                                            ]),
+                                        );
+                                        Value::Object(map)
+                                    } else {
+                                        json!({
+                                            "anyOf": [
+                                                inner_schema.schema,
+                                                {"type": "null"}
+                                            ]
+                                        })
+                                    }
+                                }
+                                _ => json!({
+                                    "anyOf": [
+                                        inner_schema.schema,
+                                        {"type": "null"}
+                                    ]
+                                }),
+                            };
+                            return FieldSchema {
+                                schema: schema_with_null,
+                                required: false,
+                            };
                         }
                     }
-                    json!({"anyOf": [{"type": "null"}]})
+                    FieldSchema {
+                        schema: json!({"type": "null"}),
+                        required: false,
+                    }
                 }
-                _ => json!({"type": "object"}), // assume custom types are objects
+                _ => FieldSchema {
+                    schema: json!({"type": "object"}),
+                    required: true,
+                }, // assume custom types are objects
             }
         }
         _ => panic!("Unsupported type"),
