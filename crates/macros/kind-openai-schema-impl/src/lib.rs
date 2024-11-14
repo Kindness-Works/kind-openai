@@ -17,62 +17,123 @@ pub fn openai_schema_derive(input: TokenStream) -> TokenStream {
 
     let description = get_description(&input.attrs);
 
-    let field_infos = match input.data {
-        Data::Struct(data) => match data.fields {
-            Fields::Named(fields) => fields
-                .named
+    let schema = match input.data {
+        Data::Struct(data) => {
+            let field_infos = match data.fields {
+                Fields::Named(fields) => fields
+                    .named
+                    .iter()
+                    .map(|f| {
+                        let field_name = f.ident.as_ref().unwrap().to_string();
+                        let field_schema = get_field_type(&f.ty);
+                        FieldInfo {
+                            name: field_name,
+                            schema: field_schema.schema,
+                            required: field_schema.required,
+                        }
+                    })
+                    .collect::<Vec<FieldInfo>>(),
+                Fields::Unnamed(fields) => fields
+                    .unnamed
+                    .iter()
+                    .enumerate()
+                    .map(|(i, f)| {
+                        let field_name = i.to_string();
+                        let field_schema = get_field_type(&f.ty);
+                        FieldInfo {
+                            name: field_name,
+                            schema: field_schema.schema,
+                            required: field_schema.required,
+                        }
+                    })
+                    .collect::<Vec<FieldInfo>>(),
+                Fields::Unit => Vec::new(),
+            };
+
+            let mut properties = serde_json::Map::new();
+            for field in &field_infos {
+                properties.insert(field.name.clone(), field.schema.clone());
+            }
+
+            let required: Vec<String> = field_infos
                 .iter()
-                .map(|f| {
-                    let field_name = f.ident.as_ref().unwrap().to_string();
-                    let field_schema = get_field_type(&f.ty);
-                    FieldInfo {
-                        name: field_name,
-                        schema: field_schema.schema,
-                        required: field_schema.required,
-                    }
-                })
-                .collect::<Vec<FieldInfo>>(),
-            Fields::Unnamed(fields) => fields
-                .unnamed
-                .iter()
-                .enumerate()
-                .map(|(i, f)| {
-                    let field_name = i.to_string();
-                    let field_schema = get_field_type(&f.ty);
-                    FieldInfo {
-                        name: field_name,
-                        schema: field_schema.schema,
-                        required: field_schema.required,
-                    }
-                })
-                .collect::<Vec<FieldInfo>>(),
-            Fields::Unit => Vec::new(),
-        },
-        _ => panic!("Only structs are supported"),
-    };
+                .filter(|f| f.required)
+                .map(|f| f.name.clone())
+                .collect();
 
-    let mut properties = serde_json::Map::new();
-    for field in &field_infos {
-        properties.insert(field.name.clone(), field.schema.clone());
-    }
-
-    let required: Vec<String> = field_infos
-        .iter()
-        .filter(|f| f.required)
-        .map(|f| f.name.clone())
-        .collect();
-
-    let schema = json!({
-        "name": name.to_string(),
-        "description": description,
-        "strict": true,
-        "schema": {
-            "type": "object",
-            "properties": properties,
-            "required": required,
-            "additionalProperties": false
+            json!({
+                "name": name.to_string(),
+                "description": description,
+                "strict": true,
+                "schema": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                    "additionalProperties": false
+                }
+            })
         }
-    });
+        Data::Enum(data) => {
+            let mut variant_values = Vec::new();
+            let mut is_numeric_enum = true;
+            for variant in data.variants.iter() {
+                match &variant.fields {
+                    syn::Fields::Unit => {
+                        if let Some((_, expr)) = &variant.discriminant {
+                            // Try to parse expr to get integer value
+                            if let syn::Expr::Lit(syn::ExprLit {
+                                lit: syn::Lit::Int(lit_int),
+                                ..
+                            }) = expr
+                            {
+                                let int_value = lit_int.base10_parse::<i64>().unwrap();
+                                variant_values.push(json!(int_value));
+                            } else {
+                                // Discriminant is not integer literal
+                                is_numeric_enum = false;
+                                break;
+                            }
+                        } else {
+                            // No discriminant
+                            is_numeric_enum = false;
+                            break;
+                        }
+                    }
+                    _ => panic!("Only enums with unit variants are supported"),
+                }
+            }
+
+            if is_numeric_enum && variant_values.len() == data.variants.len() {
+                json!({
+                    "name": name.to_string(),
+                    "description": description,
+                    "schema": {
+                        "type": "number",
+                        "enum": variant_values
+                    }
+                })
+            } else {
+                let variant_names = data
+                    .variants
+                    .iter()
+                    .map(|variant| match &variant.fields {
+                        syn::Fields::Unit => variant.ident.to_string(),
+                        _ => panic!("Only enums with unit variants are supported"),
+                    })
+                    .collect::<Vec<String>>();
+
+                json!({
+                    "name": name.to_string(),
+                    "description": description,
+                    "schema": {
+                        "type": "string",
+                        "enum": variant_names
+                    }
+                })
+            }
+        }
+        _ => panic!("Only structs and enums with unit variants are supported"),
+    };
 
     let schema_str = serde_json::to_string(&schema).unwrap();
 
@@ -111,7 +172,11 @@ fn get_field_type(ty: &Type) -> FieldSchema {
                     schema: json!({"type": "string"}),
                     required: true,
                 },
-                "i32" | "i64" | "f32" | "f64" => FieldSchema {
+                "i32" | "i64" | "u32" | "u64" | "isize" | "usize" => FieldSchema {
+                    schema: json!({"type": "integer"}),
+                    required: true,
+                },
+                "f32" | "f64" => FieldSchema {
                     schema: json!({"type": "number"}),
                     required: true,
                 },
