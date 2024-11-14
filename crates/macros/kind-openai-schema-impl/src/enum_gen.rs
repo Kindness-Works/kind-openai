@@ -12,20 +12,18 @@ pub fn handle_enum(
     for variant in &data.variants {
         match &variant.fields {
             Fields::Unit => {
-                if let Some((_, expr)) = &variant.discriminant {
-                    if let Expr::Lit(syn::ExprLit {
+                if let Some((
+                    _,
+                    Expr::Lit(syn::ExprLit {
                         lit: Lit::Int(lit_int),
                         ..
-                    }) = expr
-                    {
-                        let int_value = lit_int
-                            .base10_parse::<i64>()
-                            .map_err(|e| syn::Error::new_spanned(lit_int, e))?;
-                        variant_values.push(json!(int_value));
-                    } else {
-                        is_numeric_enum = false;
-                        break;
-                    }
+                    }),
+                )) = &variant.discriminant
+                {
+                    let int_value = lit_int
+                        .base10_parse::<i64>()
+                        .map_err(|e| syn::Error::new_spanned(lit_int, e))?;
+                    variant_values.push(json!(int_value));
                 } else {
                     is_numeric_enum = false;
                     break;

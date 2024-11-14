@@ -50,11 +50,11 @@ impl From<usize> for FieldName {
     }
 }
 
-impl ToString for FieldName {
-    fn to_string(&self) -> String {
+impl core::fmt::Display for FieldName {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            FieldName::Anonymous(i) => i.to_string(),
-            FieldName::Named(name) => name.clone(),
+            FieldName::Anonymous(i) => write!(f, "{}", i),
+            FieldName::Named(name) => write!(f, "{}", name),
         }
     }
 }
