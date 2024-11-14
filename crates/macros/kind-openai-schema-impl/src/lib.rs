@@ -244,10 +244,7 @@ fn get_field_type(ty: &Type) -> FieldSchema {
                         required: false,
                     }
                 }
-                _ => FieldSchema {
-                    schema: json!({"type": "object"}),
-                    required: true,
-                }, // assume custom types are objects
+                _ => panic!("Nested structs or enums are not supported"),
             }
         }
         _ => panic!("Unsupported type"),
