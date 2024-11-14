@@ -1,7 +1,7 @@
 //! Run this example with `OPENAI_API_KEY=`
 
 use kind_openai::{
-    endpoints::chat::{ChatCompletionModel, ChatCompletionRequest, ChatCompletionRequestMessage},
+    endpoints::chat::{ChatCompletionModel, ChatCompletionRequest},
     system_message, user_message, EnvironmentAuthTokenProvider, OpenAI, OpenAISchema,
 };
 use serde::Deserialize;

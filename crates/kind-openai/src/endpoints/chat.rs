@@ -146,14 +146,14 @@ impl<'a> ChatCompletionRequestMessage<'a> {
 #[macro_export]
 macro_rules! system_message {
     ($($arg:tt)*) => {
-        ChatCompletionRequestMessage::system(format!($($arg)*).into());
+        ::kind_openai::endpoints::chat::ChatCompletionRequestMessage::system(format!($($arg)*).into());
     };
 }
 
 #[macro_export]
 macro_rules! user_message {
     ($($arg:tt)*) => {
-        ChatCompletionRequestMessage::user(format!($($arg)*).into());
+        ::kind_openai::endpoints::chat::ChatCompletionRequestMessage::user(format!($($arg)*).into());
     };
 }
 

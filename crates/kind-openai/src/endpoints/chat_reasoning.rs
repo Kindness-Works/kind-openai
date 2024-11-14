@@ -45,14 +45,14 @@ impl<'a> ChatReasoningCompletionRequestMessage<'a> {
 #[macro_export]
 macro_rules! reasoning_user_message {
     ($($arg:tt)*) => {
-        ChatReasoningCompletionRequestMessage::user(format!($($arg)*).into());
+        ::kind_openai::endpoints::chat_reasoning::ChatReasoningCompletionRequestMessage::user(format!($($arg)*).into());
     };
 }
 
 #[macro_export]
 macro_rules! reasoning_assistant_message {
     ($($arg:tt)*) => {
-        ChatReasoningCompletionRequestMessage::assistant(format!($($arg)*).into());
+         ::kind_openai::endpoints::chat_reasoning::ChatReasoningCompletionRequestMessage::assistant(format!($($arg)*).into());
     };
 }
 
