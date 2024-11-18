@@ -3,7 +3,7 @@ pub trait AuthTokenProvider: Clone {
     async fn resolve(&self) -> Option<String>;
 }
 
-/// Auth token provided that takes the auth token from the environment.
+/// Auth token provided that takes the auth token from the environment variable `OPENAI_API_KEY`.
 #[derive(Clone)]
 pub struct EnvironmentAuthTokenProvider;
 

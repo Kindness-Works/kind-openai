@@ -1,6 +1,6 @@
 [package]
 name = "kind-openai-schema-impl"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "OpenAI schema generation macro"
 license = "MIT"

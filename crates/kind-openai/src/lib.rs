@@ -6,15 +6,12 @@
 mod auth;
 pub mod endpoints;
 pub mod error;
-mod util;
 
 pub use auth::{AuthTokenProvider, EnvironmentAuthTokenProvider};
-use endpoints::chat::ChatCompletion;
+use endpoints::OpenAIRequestProvider;
 pub use error::{OpenAIError, OpenAIResult};
 pub use kind_openai_schema::*;
-use reqwest::{IntoUrl, Method};
 use serde::Deserialize;
-pub use util::UnstructuredString;
 
 /// A handle to OpenAI.
 #[derive(Clone)]
@@ -35,72 +32,14 @@ where
         }
     }
 
-    async fn post(
-        &self,
-        url: impl IntoUrl,
-        json: &impl serde::Serialize,
-    ) -> OpenAIResult<reqwest::Response> {
-        Ok(self
-            .authed_request(Method::POST, url)
-            .await?
-            .json(json)
-            .send()
-            .await?)
-    }
-
-    #[allow(dead_code)]
-    async fn get(&self, url: impl IntoUrl) -> OpenAIResult<reqwest::Response> {
-        Ok(self.authed_request(Method::GET, url).await?.send().await?)
-    }
-
-    async fn authed_request(
-        &self,
-        method: Method,
-        url: impl IntoUrl,
-    ) -> OpenAIResult<reqwest::RequestBuilder>
-    where
-        Auth: auth::AuthTokenProvider,
-    {
-        let bearer_token = self
-            .auth
-            .resolve()
-            .await
-            .ok_or(error::OpenAIError::MissingAuthToken)?;
-
-        Ok(self
-            .client
-            .request(method, url)
-            .header("Authorization", format!("Bearer {bearer_token}")))
-    }
-
-    /// Creates a structured chat completion on any type that implements
-    /// `OpenAISchema`.
-    pub async fn create_chat_completion<'a, S>(
-        &self,
-        req: &endpoints::chat::ChatCompletionRequest<'a, S>,
-    ) -> OpenAIResult<ChatCompletion<S>>
-    where
-        S: for<'de> serde::Deserialize<'de>,
-    {
-        endpoints::chat::create_chat_completion(self, req).await
-    }
-
-    pub async fn create_chat_reasoning_completion<'a>(
-        &self,
-        req: &endpoints::chat_reasoning::ChatReasoningCompletionRequest<'a>,
-    ) -> OpenAIResult<endpoints::chat_reasoning::ChatReasoningCompletion> {
-        endpoints::chat_reasoning::create_chat_reasoning_completion(self, req).await
-    }
-
-    pub async fn create_embeddings(
-        &self,
-        req: &endpoints::embeddings::CreateEmbeddingsRequest<'_>,
-    ) -> OpenAIResult<endpoints::embeddings::CreateEmbeddingsResponse> {
-        endpoints::embeddings::create_embeddings(self, req).await
+    /// Sends a request to the OpenAI API.
+    pub async fn req<R: OpenAIRequestProvider>(&self, r: &R) -> OpenAIResult<R::Response> {
+        endpoints::send_request(self, r).await
     }
 }
 
-#[derive(Deserialize, Debug)]
+/// The token usage of a request.
+#[derive(Deserialize, Clone, Copy, Debug)]
 pub struct Usage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,

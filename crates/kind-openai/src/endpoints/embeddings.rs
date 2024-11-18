@@ -1,34 +1,56 @@
+use bon::Builder;
+use reqwest::Method;
 use serde::{Deserialize, Serialize};
 
-use crate::{error::OpenAIResponseExt, AuthTokenProvider, OpenAI, OpenAIResult};
+use super::OpenAIRequestProvider;
 
-use super::API_BASE_URL;
-
+/// The model used to create text embeddings.
 #[derive(Serialize, Debug, Clone, Copy)]
 pub enum EmbeddingsModel {
     #[serde(rename = "text-embedding-3-large")]
     TextEmbedding3Large,
 }
 
-#[derive(Serialize, Debug, Clone)]
-pub struct CreateEmbeddingsRequest<'a> {
+/// A text embeddings creation request.
+///
+/// Construct with `Embeddings::model`
+#[derive(Serialize, Debug, Clone, Builder)]
+#[builder(start_fn = model)]
+pub struct Embeddings<'a> {
+    #[builder(start_fn)]
     model: EmbeddingsModel,
     input: &'a str,
 }
 
-impl<'a> CreateEmbeddingsRequest<'a> {
-    pub fn new(model: EmbeddingsModel, input: &'a str) -> Self {
-        Self { model, input }
+impl OpenAIRequestProvider for Embeddings<'_> {
+    type Response = EmbeddingsResponse;
+
+    const METHOD: reqwest::Method = Method::POST;
+
+    fn path_with_leading_slash() -> String {
+        "/embeddings".to_string()
     }
 }
 
+impl super::private::Sealed for Embeddings<'_> {}
+
 #[derive(Deserialize)]
-pub struct CreateEmbeddingsResponse {
+pub struct EmbeddingsResponse {
     data: Vec<EmbeddingsData>,
 }
 
-impl CreateEmbeddingsResponse {
-    pub fn embedding(&self) -> &[f32] {
+impl EmbeddingsResponse {
+    /// Consumes the response and gives the embeddings.
+    pub fn embedding(self) -> Vec<f32> {
+        self.data
+            .into_iter()
+            .next()
+            .map(|d| d.embedding)
+            .unwrap_or_default()
+    }
+
+    /// Gives a reference to the generated embeddings.
+    pub fn embedding_ref(&self) -> &[f32] {
         &self.data[0].embedding
     }
 }
@@ -36,18 +58,4 @@ impl CreateEmbeddingsResponse {
 #[derive(Deserialize)]
 struct EmbeddingsData {
     embedding: Vec<f32>,
-}
-
-pub async fn create_embeddings<Auth>(
-    openai: &OpenAI<Auth>,
-    req: &CreateEmbeddingsRequest<'_>,
-) -> OpenAIResult<CreateEmbeddingsResponse>
-where
-    Auth: AuthTokenProvider,
-{
-    openai
-        .post(format!("{API_BASE_URL}/embeddings"), req)
-        .await?
-        .openai_response_json()
-        .await
 }

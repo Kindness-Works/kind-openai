@@ -1,5 +1,5 @@
 use serde_json::{json, Value};
-use syn::{Attribute, Type};
+use syn::{Attribute, Ident, Type};
 
 /// Extracts the description to provide to the JSON schema by scraping and reading triple-slash doc comments.
 /// This works on top-level structs, top-level enums, and individual struct fields. AFAIK it's not possible to
@@ -34,22 +34,90 @@ pub fn get_description(attrs: &[Attribute]) -> Option<String> {
     }
 }
 
-/// Friendlier JSON-schema based representation of a Rust type.
-/// There is an oddity with OpenAI's JSON schema where each variant MUST have `required`,
-/// while at the same time also requiring that `required` is also true.
-///
-/// Including the `required` field here is mostly for clarity, but we could just hardcore it to true
-/// elsewhere if we wanted.
-///
-/// Representing `Option<T>` is done by creating a union of `T` and a JSON `null`
-pub struct FieldSchema {
-    pub schema: Value,
-    pub required: bool,
+pub fn has_top_level_serde_attr(attrs: &[Attribute]) -> bool {
+    attrs
+        .iter()
+        .any(|attr| matches!(get_serde_meta_item(attr), Ok(Some(_))))
+}
+
+pub fn has_repr_attr(attrs: &[Attribute]) -> Result<bool, syn::Error> {
+    let mut repr = None;
+    for attr in attrs {
+        if attr.path().is_ident("repr") {
+            if let syn::Meta::List(meta) = &attr.meta {
+                meta.parse_nested_meta(|meta| {
+                    const RECOGNIZED: &[&str] = &[
+                        "u8", "u16", "u32", "u64", "u128", "usize", "i8", "i16", "i32", "i64",
+                        "i128", "isize",
+                    ];
+                    if RECOGNIZED.iter().any(|int| meta.path.is_ident(int)) {
+                        repr = Some(meta.path.get_ident().unwrap().clone());
+                        return Ok(());
+                    }
+                    if meta.path.is_ident("align") || meta.path.is_ident("packed") {
+                        if meta.input.peek(syn::token::Paren) {
+                            let arg;
+                            syn::parenthesized!(arg in meta.input);
+                            let _ = arg.parse::<proc_macro2::TokenStream>()?;
+                        }
+                        return Ok(());
+                    }
+                    Err(meta.error("unsupported repr for serde_repr enum"))
+                })?;
+            }
+        }
+    }
+
+    Ok(repr.is_some())
+}
+
+pub fn get_serde_rename(attrs: &[Attribute]) -> Option<String> {
+    attrs
+        .iter()
+        .find_map(|attr| match get_serde_meta_item(attr) {
+            Ok(Some(tokens)) => {
+                let tokens = tokens.to_string();
+                match tokens.find("rename = ") {
+                    Some(rename_start) => {
+                        let quote_start = tokens[rename_start..].find('"')?;
+                        let start = rename_start + quote_start + 1;
+                        let end = tokens[start..].find('"')?;
+                        Some(tokens[start..start + end].to_string())
+                    }
+                    None => None,
+                }
+            }
+            _ => None,
+        })
+}
+
+pub fn get_serde_skip(attrs: &[Attribute]) -> bool {
+    attrs.iter().any(|attr| match get_serde_meta_item(attr) {
+        Ok(Some(tokens)) => tokens.to_string().contains("skip"),
+        _ => false,
+    })
+}
+
+fn get_serde_meta_item(attr: &Attribute) -> syn::Result<Option<&proc_macro2::TokenStream>> {
+    if attr.path().is_ident("serde") {
+        match &attr.meta {
+            syn::Meta::List(meta) => Ok(Some(&meta.tokens)),
+            bad => Err(syn::Error::new_spanned(bad, "unrecognized attribute")),
+        }
+    } else {
+        Ok(None)
+    }
+}
+
+#[derive(Clone)]
+pub enum Schema {
+    Subordinate(Ident),
+    Inlined(Value),
 }
 
 /// This is the core util that underlies most of this crate, effectively this takes in a Rust type
 /// and produces a corresponding JSON schema type for it.
-pub fn get_field_type(ty: &Type) -> Result<FieldSchema, syn::Error> {
+pub fn get_field_type(ty: &Type) -> Result<Schema, syn::Error> {
     match ty {
         Type::Path(type_path) => {
             let segment =
@@ -58,33 +126,24 @@ pub fn get_field_type(ty: &Type) -> Result<FieldSchema, syn::Error> {
                 })?;
             let type_name = segment.ident.to_string();
             match type_name.as_str() {
-                "String" => Ok(FieldSchema {
-                    schema: json!({ "type": "string" }),
-                    required: true,
-                }),
-                "i32" | "i64" | "u32" | "u64" | "isize" | "usize" => Ok(FieldSchema {
-                    schema: json!({ "type": "integer" }),
-                    required: true,
-                }),
-                "f32" | "f64" => Ok(FieldSchema {
-                    schema: json!({ "type": "number" }),
-                    required: true,
-                }),
-                "bool" => Ok(FieldSchema {
-                    schema: json!({ "type": "boolean" }),
-                    required: true,
-                }),
+                "String" => Ok(Schema::Inlined(json!({ "type": "string" }))),
+                "i32" | "i64" | "u32" | "u64" | "isize" | "usize" => {
+                    Ok(Schema::Inlined(json!({ "type": "integer" })))
+                }
+                "f32" | "f64" => Ok(Schema::Inlined(json!({ "type": "number" }))),
+                "bool" => Ok(Schema::Inlined(json!({ "type": "boolean" }))),
                 "Vec" => {
                     if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
                         if let Some(syn::GenericArgument::Type(inner_type)) = args.args.first() {
                             let inner_schema = get_field_type(inner_type)?;
-                            Ok(FieldSchema {
-                                schema: json!({
-                                    "type": "array",
-                                    "items": inner_schema.schema
-                                }),
-                                required: true,
-                            })
+                            let items = match inner_schema {
+                                Schema::Subordinate(_name) => todo!(),
+                                Schema::Inlined(schema) => schema,
+                            };
+                            Ok(Schema::Inlined(json!({
+                                "type": "array",
+                                "items": items,
+                            })))
                         } else {
                             Err(syn::Error::new_spanned(
                                 args,
@@ -102,11 +161,8 @@ pub fn get_field_type(ty: &Type) -> Result<FieldSchema, syn::Error> {
                     if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
                         if let Some(syn::GenericArgument::Type(inner_type)) = args.args.first() {
                             let inner_schema = get_field_type(inner_type)?;
-                            let schema_with_null = merge_with_null(inner_schema.schema);
-                            Ok(FieldSchema {
-                                schema: schema_with_null,
-                                required: false,
-                            })
+                            let schema_with_null = merge_with_null(inner_schema);
+                            Ok(Schema::Inlined(schema_with_null))
                         } else {
                             Err(syn::Error::new_spanned(
                                 args,
@@ -120,28 +176,26 @@ pub fn get_field_type(ty: &Type) -> Result<FieldSchema, syn::Error> {
                         ))
                     }
                 }
-                _ => Err(syn::Error::new_spanned(
-                    ty,
-                    "Nested structs or enums are not supported",
-                )),
+                _hopefully_an_enum => Ok(Schema::Subordinate(segment.ident.clone())),
             }
         }
         _ => Err(syn::Error::new_spanned(ty, "Unsupported type")),
     }
 }
 
-fn merge_with_null(schema: Value) -> Value {
-    match schema.clone() {
-        Value::Object(mut map) => {
-            if let Some(Value::String(type_str)) = map.get("type").cloned() {
+fn merge_with_null(schema: Schema) -> Value {
+    match schema {
+        Schema::Inlined(ref schema @ Value::Object(ref map)) => {
+            if let Some(Value::String(type_str)) = map.get("type") {
+                let mut map = map.clone();
                 map.insert(
                     "type".to_string(),
                     Value::Array(vec![
-                        Value::String(type_str),
+                        Value::String(type_str.clone()),
                         Value::String("null".to_string()),
                     ]),
                 );
-                Value::Object(map)
+                Value::Object(map.clone())
             } else {
                 json!({
                     "anyOf": [
@@ -151,11 +205,12 @@ fn merge_with_null(schema: Value) -> Value {
                 })
             }
         }
-        _ => json!({
+        Schema::Inlined(schema) => json!({
             "anyOf": [
                 schema,
                 { "type": "null" }
             ]
         }),
+        Schema::Subordinate(_) => todo!(),
     }
 }

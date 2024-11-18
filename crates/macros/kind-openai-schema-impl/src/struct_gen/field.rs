@@ -1,4 +1,3 @@
-use serde_json::Value;
 use syn::{Field, Ident};
 
 use crate::utils;
@@ -7,24 +6,31 @@ use crate::utils;
 /// to turn it into a JSON schema object.
 pub struct FieldInfo {
     pub name: String,
-    pub schema: Value,
+    pub schema: utils::Schema,
     pub required: bool,
     pub description: Option<String>,
 }
 
-impl<'a> TryFrom<FieldWithGuaranteedName<'a>> for FieldInfo {
+impl<'a> TryFrom<FieldWithGuaranteedName<'a>> for Option<FieldInfo> {
     type Error = syn::Error;
 
     fn try_from(value: FieldWithGuaranteedName<'a>) -> Result<Self, Self::Error> {
-        let field_schema = utils::get_field_type(value.ty())?;
-        let description = utils::get_description(value.attrs());
+        let attrs = value.attrs();
+        if utils::get_serde_skip(attrs) {
+            return Ok(None);
+        }
 
-        Ok(FieldInfo {
-            name: value.name(),
-            schema: field_schema.schema,
-            required: field_schema.required,
+        let field_schema = utils::get_field_type(value.ty())?;
+        let description = utils::get_description(attrs);
+        let name = utils::get_serde_rename(attrs).unwrap_or_else(|| value.name());
+
+        Ok(Some(FieldInfo {
+            name,
+            schema: field_schema,
+            // required currently must always be true, so we don't even bother including it in `get_field_type` for now.
+            required: true,
             description,
-        })
+        }))
     }
 }
 

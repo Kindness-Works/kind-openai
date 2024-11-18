@@ -1,9 +1,11 @@
 use serde_json::{json, Value};
-use syn::{DataEnum, Expr, Fields, Ident, Lit};
+use syn::{DataEnum, Expr, Fields, Lit};
+
+use crate::utils;
 
 pub fn handle_enum(
     data: &DataEnum,
-    name: &Ident,
+    has_repr: bool,
     description: Option<String>,
 ) -> Result<Value, syn::Error> {
     let mut is_numeric_enum = true;
@@ -20,6 +22,15 @@ pub fn handle_enum(
                     }),
                 )) = &variant.discriminant
                 {
+                    if !has_repr {
+                        return Err(syn::Error::new_spanned(
+                            lit_int,
+                            "repr attribute is required for enums with non-numeric variants.
+NOTE: when using repr, ensure that you are using the `serde_repr` crate. It's impossible for us to detect that you are \
+actually using that deserializer, so you will get runtime deserialization errors if not as we always generate \
+numeric schemas when repr is detected.",
+                        ));
+                    }
                     let int_value = lit_int
                         .base10_parse::<i64>()
                         .map_err(|e| syn::Error::new_spanned(lit_int, e))?;
@@ -38,32 +49,41 @@ pub fn handle_enum(
         }
     }
 
-    if is_numeric_enum && variant_values.len() == data.variants.len() {
-        Ok(json!({
-            "name": name.to_string(),
-            "description": description,
-            "schema": {
-                "type": "number",
-                "enum": variant_values
-            }
-        }))
+    let mut subordinate_schema = if is_numeric_enum && variant_values.len() == data.variants.len() {
+        json!({
+            "type": "number",
+            "enum": variant_values
+        })
     } else {
         let variant_names = data
             .variants
             .iter()
+            .filter(|variant| !utils::get_serde_skip(&variant.attrs))
             .map(|variant| match &variant.fields {
-                Fields::Unit => variant.ident.to_string(),
+                Fields::Unit => {
+                    if utils::get_description(&variant.attrs).is_some() {
+                        Err(syn::Error::new_spanned(
+                            &variant.ident,
+                            "Subordinate type descriptions should be located on the subordinate type itself and not on the field.",
+                        ))
+                    } else {
+                        Ok(utils::get_serde_rename(&variant.attrs)
+                            .unwrap_or_else(|| variant.ident.to_string()))
+                    }
+                },
                 _ => unreachable!(), // we've have already checked non-unit
             })
-            .collect::<Vec<String>>();
+            .collect::<Result<Vec<String>, syn::Error>>()?;
 
-        Ok(json!({
-            "name": name.to_string(),
-            "description": description,
-            "schema": {
-                "type": "string",
-                "enum": variant_names
-            }
-        }))
+        json!({
+            "type": "string",
+            "enum": variant_names
+        })
+    };
+
+    if let Some(description) = description {
+        subordinate_schema["description"] = Value::String(description);
     }
+
+    Ok(subordinate_schema)
 }
