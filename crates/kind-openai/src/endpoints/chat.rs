@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Clone, Copy)]
 #[allow(non_camel_case_types)]
 pub enum Model {
+    #[serde(rename = "gpt-4o-2024-11-20")]
+    Gpt4o_2024_11_20,
     #[serde(rename = "gpt-4o-2024-08-06")]
     Gpt4o_2024_08_06,
     #[serde(rename = "gpt-4o")]
