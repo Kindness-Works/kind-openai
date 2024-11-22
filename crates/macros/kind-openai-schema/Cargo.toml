@@ -1,6 +1,6 @@
 [package]
 name = "kind-openai-schema"
-version = "0.3.0"
+version = "0.3.3"
 edition = "2021"
 description = "OpenAI schema generation macro public library"
 license = "MIT"
@@ -8,7 +8,7 @@ homepage = "https://github.com/Kindness-Works/kind-openai"
 repository = "https://github.com/Kindness-Works/kind-openai"
 
 [dependencies]
-kind-openai-schema-impl = "0.3.0"
+kind-openai-schema-impl = "0.3.3"
 serde = "1.0.205"
 serde_json = { version = "1.0.122", features = ["raw_value"] }
 serde_repr = "0.1.19"

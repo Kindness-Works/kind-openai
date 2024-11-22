@@ -77,7 +77,7 @@ pub fn get_serde_rename(attrs: &[Attribute]) -> Option<String> {
         .find_map(|attr| match get_serde_meta_item(attr) {
             Ok(Some(tokens)) => {
                 let tokens = tokens.to_string();
-                match tokens.find("rename = ") {
+                match tokens.find("rename =") {
                     Some(rename_start) => {
                         let quote_start = tokens[rename_start..].find('"')?;
                         let start = rename_start + quote_start + 1;
