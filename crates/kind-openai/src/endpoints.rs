@@ -46,7 +46,9 @@ where
         .await
         .ok_or(crate::error::OpenAIError::MissingAuthToken)?;
 
-    openai
+    // take the response text and deserialize by hand so we can log response
+    // bodies that don't conform to the same structure
+    let response_text = openai
         .client
         .request(
             R::METHOD,
@@ -57,9 +59,13 @@ where
         .json(request)
         .send()
         .await?
-        .json::<GenericOpenAIResponse<R::Response>>()
-        .await?
-        .into()
+        .text()
+        .await?;
+
+    match serde_json::from_str::<GenericOpenAIResponse<R::Response>>(&response_text) {
+        Ok(response) => response.into(),
+        Err(err) => Err(crate::error::OpenAIError::Serde(response_text, err)),
+    }
 }
 
 mod private {

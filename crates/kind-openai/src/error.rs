@@ -9,8 +9,8 @@ pub enum OpenAIError {
     #[error("http error: {0}")]
     Reqwest(reqwest::Error),
     /// Malformed response from the OpenAI API.
-    #[error("failed to deserialize api response: {0}")]
-    Serde(serde_json::Error),
+    #[error("failed to deserialize api response {0} with error: {1}")]
+    Serde(String, serde_json::Error),
     /// The auth token was not provided.
     #[error("missing auth token")]
     MissingAuthToken,
@@ -25,12 +25,6 @@ pub enum OpenAIError {
 impl From<reqwest::Error> for OpenAIError {
     fn from(err: reqwest::Error) -> Self {
         Self::Reqwest(err)
-    }
-}
-
-impl From<serde_json::Error> for OpenAIError {
-    fn from(err: serde_json::Error) -> Self {
-        Self::Serde(err)
     }
 }
 
