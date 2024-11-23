@@ -20,6 +20,7 @@ pub struct ChatCompletion<'a> {
     model: Model,
     messages: Vec<Message<'a>>,
     temperature: Option<f32>,
+    top_p: Option<f32>,
 }
 
 impl OpenAIRequestProvider for ChatCompletion<'_> {
