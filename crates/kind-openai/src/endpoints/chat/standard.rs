@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bon::Builder;
 use chat_completion_builder::IsComplete;
 use kind_openai_schema::OpenAISchema;
@@ -14,13 +16,15 @@ use super::{
 /// A standard chat completion request. The response will be a string in any shape and will not
 /// be parsed.
 #[derive(Serialize, Builder)]
-#[builder(start_fn = model, finish_fn = unstructured)]
+#[builder(start_fn = model, finish_fn = unstructured, state_mod(vis = "pub"))]
 pub struct ChatCompletion<'a> {
     #[builder(start_fn)]
     model: Model,
     messages: Vec<Message<'a>>,
     temperature: Option<f32>,
     top_p: Option<f32>,
+    store: Option<bool>,
+    metadata: Option<HashMap<String, String>>,
 }
 
 impl OpenAIRequestProvider for ChatCompletion<'_> {

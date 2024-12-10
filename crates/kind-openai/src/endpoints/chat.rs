@@ -4,7 +4,7 @@ mod structured;
 pub use standard::*;
 pub use structured::*;
 
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
 
 use bon::{builder, Builder};
 use serde::{Deserialize, Serialize};
@@ -53,8 +53,6 @@ pub struct Message<'a> {
     content: Cow<'a, str>,
     refusal: Option<&'a str>,
     name: Option<Cow<'a, str>>,
-    store: Option<bool>,
-    metadata: Option<HashMap<String, String>>,
 }
 
 #[macro_export]

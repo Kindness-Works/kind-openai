@@ -27,7 +27,7 @@ pub enum Role {
 
 /// A chat reasoning completion request. This currently does not support structured outputs.
 #[derive(Serialize, Debug, Clone, Builder)]
-#[builder(start_fn = model)]
+#[builder(start_fn = model, state_mod(vis = "pub"))]
 pub struct ChatReasoningCompletion<'a> {
     #[builder(start_fn)]
     model: ReasoningModel,
