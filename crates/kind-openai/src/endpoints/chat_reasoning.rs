@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap};
 
 use bon::{builder, Builder};
 use reqwest::Method;
@@ -32,6 +32,8 @@ pub struct ChatReasoningCompletion<'a> {
     #[builder(start_fn)]
     model: ReasoningModel,
     messages: Vec<ReasoningMessage<'a>>,
+    store: Option<bool>,
+    metadata: Option<HashMap<String, String>>,
 }
 
 impl OpenAIRequestProvider for ChatReasoningCompletion<'_> {
