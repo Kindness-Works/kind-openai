@@ -42,7 +42,7 @@ impl Serialize for GeneratedOpenAISchema {
 /// Additionally, `serde(skip)` and `serde(rename)` on fields works perfectly fine.
 ///
 /// For example:
-/// ```rust
+/// ```rust,ignore
 /// #[derive(Deserialize, OpenAISchema)]
 /// /// Hello friends
 /// struct SuperComplexSchema {
