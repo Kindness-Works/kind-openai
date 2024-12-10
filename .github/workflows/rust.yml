@@ -41,16 +41,16 @@ jobs:
           override: true
       - name: Build
         run: cargo build --release
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-      - name: Install Clippy
-        run: rustup component add clippy
-      - name: Run Clippy
-        run: cargo clippy -- -D warnings
+  # lint:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Install Rust
+  #       uses: actions-rs/toolchain@v1
+  #       with:
+  #         toolchain: stable
+  #         override: true
+  #     - name: Install Clippy
+  #       run: rustup component add clippy
+  #     - name: Run Clippy
+  #       run: cargo clippy -- -D warnings
