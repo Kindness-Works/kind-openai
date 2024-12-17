@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap};
 
 use kind_openai_schema::{GeneratedOpenAISchema, OpenAISchema};
 use serde::{
@@ -25,6 +25,9 @@ pub enum ChatCompletionModel {
     Gpt4oMini,
 }
 
+/// Maps token_id to bias value
+pub type LogitBias = HashMap<i32, i32>;
+
 /// A text chat completion request.
 #[derive(Serialize)]
 pub struct ChatCompletionRequest<'a, S> {
@@ -32,6 +35,7 @@ pub struct ChatCompletionRequest<'a, S> {
     messages: Vec<ChatCompletionRequestMessage<'a>>,
     temperature: Option<f32>,
     response_format: Option<ChatCompletionRequestResponseFormat>,
+    logit_bias: Option<LogitBias>,
     #[serde(skip)]
     _maybe_schema: std::marker::PhantomData<S>,
 }
@@ -54,6 +58,7 @@ impl<'a, S> ChatCompletionRequest<'a, S> {
             messages: Vec::new(),
             temperature: None,
             response_format: None,
+            logit_bias: None,
             _maybe_schema: std::marker::PhantomData,
         }
     }
@@ -66,6 +71,7 @@ impl<'a, S> ChatCompletionRequest<'a, S> {
             model,
             messages: Vec::new(),
             temperature: None,
+            logit_bias: None,
             response_format: Some(ChatCompletionRequestResponseFormat::JsonSchema(
                 S::openai_schema(),
             )),
@@ -82,6 +88,14 @@ impl<'a, S> ChatCompletionRequest<'a, S> {
     /// Sets the request temperature.
     pub fn temperature(mut self, temperature: f32) -> Self {
         self.temperature = Some(temperature);
+        self
+    }
+
+    /// Sets the logit bias for specific token IDs.
+    /// Positive values increase likelihood of the token being selected,
+    /// negative values decrease likelihood.
+    pub fn logit_bias(mut self, logit_bias: HashMap<i32, i32>) -> Self {
+        self.logit_bias = Some(logit_bias);
         self
     }
 }
