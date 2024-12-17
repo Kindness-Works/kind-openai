@@ -25,6 +25,7 @@ pub struct ChatCompletion<'a> {
     top_p: Option<f32>,
     store: Option<bool>,
     metadata: Option<HashMap<String, String>>,
+    logit_bias: Option<HashMap<i32, i32>>,
 }
 
 impl OpenAIRequestProvider for ChatCompletion<'_> {
@@ -119,4 +120,19 @@ impl From<ChatCompletionResponseMessage> for UnifiedChatCompletionResponseMessag
             refusal: value.refusal,
         }
     }
+}
+
+#[macro_export]
+macro_rules! logit_bias {
+    () => {
+        std::collections::HashMap::new()
+    };
+
+    ($($key:tt : $value:expr),+ $(,)?) => {{
+        let mut map = std::collections::HashMap::new();
+        $(
+            map.insert($key as i32, $value as i32);
+        )+
+        map
+    }};
 }
