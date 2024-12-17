@@ -2,7 +2,7 @@
 
 use kind_openai::{
     endpoints::chat::{ChatCompletion, Model},
-    system_message, user_message, EnvironmentAuthTokenProvider, OpenAI, OpenAISchema,
+    logit_bias, system_message, user_message, EnvironmentAuthTokenProvider, OpenAI, OpenAISchema,
 };
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
@@ -53,7 +53,10 @@ pub enum Category {
 async fn main() {
     let client = OpenAI::new(EnvironmentAuthTokenProvider);
 
-    let name = "John";
+    let name = "John but sometimes people call me Jonathan";
+
+    // do not return Jonathan
+    let logit_bias = logit_bias!(128395: -100);
 
     let chat_completion = ChatCompletion::model(Model::Gpt4oMini)
         .messages(vec![
@@ -61,6 +64,7 @@ async fn main() {
             user_message!("Hello, my name is {name}."),
         ])
         .temperature(0.1)
+        .logit_bias(logit_bias)
         .structured::<Name>();
 
     let name = client
