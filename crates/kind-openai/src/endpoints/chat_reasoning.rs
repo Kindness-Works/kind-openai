@@ -8,11 +8,18 @@ use super::OpenAIRequestProvider;
 
 /// The model to use to create a chat reasoning completion.
 #[derive(Serialize, Clone, Copy, Debug)]
+#[allow(non_camel_case_types)]
 pub enum ReasoningModel {
     #[serde(rename = "o1-preview")]
     O1Preview,
     #[serde(rename = "o1-mini")]
     O1Mini,
+    #[serde(rename = "o1-mini-2024-09-12")]
+    O1Mini_2024_09_12,
+    #[serde(rename = "o1")]
+    O1,
+    #[serde(rename = "o1-2024-12-17")]
+    O1_2024_12_17,
 }
 
 /// The role in the reasoning completion message (currently doesn't support system messages).
@@ -23,6 +30,18 @@ pub enum Role {
     User,
     /// The assistant message, containing the model's response.
     Assistant,
+    /// The developer message which provides instructions to the model to follow.
+    Developer,
+}
+
+/// The amount of effort the model puts into the reasoning. This is essentially the length of the reasoning tokens.
+/// Default is medium.
+#[derive(Serialize, Debug, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum ReasoningEffort {
+    Low,
+    Medium,
+    High,
 }
 
 /// A chat reasoning completion request. This currently does not support structured outputs.
@@ -34,6 +53,7 @@ pub struct ChatReasoningCompletion<'a> {
     messages: Vec<ReasoningMessage<'a>>,
     store: Option<bool>,
     metadata: Option<HashMap<String, String>>,
+    reasoning_effort: Option<ReasoningEffort>,
 }
 
 impl OpenAIRequestProvider for ChatReasoningCompletion<'_> {
@@ -55,6 +75,17 @@ pub struct ReasoningMessage<'a> {
     #[builder(start_fn)]
     role: Role,
     content: Cow<'a, str>,
+}
+
+#[macro_export]
+macro_rules! reasoning_developer_message {
+    ($($arg:tt)*) => {
+        ::kind_openai::endpoints::chat_reasoning::ReasoningMessage::role(
+            ::kind_openai::endpoints::chat_reasoning::Role::Developer
+        )
+        .content(format!($($arg)*).into())
+        .build();
+    };
 }
 
 #[macro_export]
