@@ -20,6 +20,10 @@ pub enum ReasoningModel {
     O1,
     #[serde(rename = "o1-2024-12-17")]
     O1_2024_12_17,
+    #[serde(rename = "o3-mini")]
+    O3Mini,
+    #[serde(rename = "o3-mini-2025-01-31")]
+    O3Mini_2025_01_31,
 }
 
 /// The role in the reasoning completion message (currently doesn't support system messages).
